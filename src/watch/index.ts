@@ -156,7 +156,15 @@ export class Task {
 		});
 	}
 
-	makeDirty() {
+	makeDirty(id: string, isTransformDependency: boolean) {
+		if (isTransformDependency) {
+			this.cache.modules.forEach(module => {
+				if (!module.transformDependencies || module.transformDependencies.indexOf(id) === -1)
+					return;
+				// effective invalidation
+				module.originalCode = null;
+			});
+		}
 		if (!this.dirty) {
 			this.dirty = true;
 			this.watcher._makeDirty();
@@ -197,9 +205,15 @@ export class Task {
 				const watched = (this.watched = new Set());
 
 				this.cache = result.cache;
-				result.cache.modules.forEach(module => {
+				this.cache.modules.forEach(module => {
 					watched.add(module.id);
 					this.watchFile(module.id);
+					if (module.transformDependencies) {
+						module.transformDependencies.forEach(depId => {
+							watched.add(depId);
+							this.watchFile(depId, true);
+						});
+					}
 				});
 				this.watched.forEach(id => {
 					if (!watched.has(id)) deleteTask(id, this, this.chokidarOptionsHash);
@@ -227,14 +241,21 @@ export class Task {
 					// this is necessary to ensure that any 'renamed' files
 					// continue to be watched following an error
 					if (this.cache.modules) {
-						this.cache.modules.forEach(module => this.watchFile(module.id));
+						this.cache.modules.forEach(module => {
+							this.watchFile(module.id);
+							if (module.transformDependencies) {
+								module.transformDependencies.forEach(depId => {
+									this.watchFile(depId, true);
+								});
+							}
+						});
 					}
 				}
 				throw error;
 			});
 	}
 
-	watchFile(id: string) {
+	watchFile(id: string, isTransformDependency = false) {
 		if (!this.filter(id)) return;
 
 		if (this.outputFiles.some(file => file === id)) {
@@ -243,7 +264,7 @@ export class Task {
 
 		// this is necessary to ensure that any 'renamed' files
 		// continue to be watched following an error
-		addTask(id, this, this.chokidarOptions, this.chokidarOptionsHash);
+		addTask(id, this, this.chokidarOptions, this.chokidarOptionsHash, isTransformDependency);
 	}
 }
 

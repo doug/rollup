@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events';
 import * as ESTree from 'estree';
+import { EventEmitter } from 'events';
 
 export const VERSION: string;
 
@@ -56,6 +56,7 @@ export interface SourceDescription {
 export interface ModuleJSON {
 	id: string;
 	dependencies: string[];
+	transformDependencies: string[];
 	code: string;
 	originalCode: string;
 	originalSourcemap: RawSourceMap | void;
@@ -301,7 +302,9 @@ export interface RollupWarning {
 
 export type WarningHandler = (warning: string | RollupWarning) => void;
 
-export type SerializedTimings = { [label: string]: number };
+export interface SerializedTimings {
+	[label: string]: number;
+}
 
 export type OutputFile = string | Buffer | OutputChunk;
 

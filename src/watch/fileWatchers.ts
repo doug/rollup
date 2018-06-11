@@ -11,13 +11,15 @@ export function addTask(
 	id: string,
 	task: Task,
 	chokidarOptions: WatchOptions,
-	chokidarOptionsHash: string
+	chokidarOptionsHash: string,
+	isTransformDependency: boolean
 ) {
 	if (!watchers.has(chokidarOptionsHash)) watchers.set(chokidarOptionsHash, new Map());
 	const group = watchers.get(chokidarOptionsHash);
 
-	if (!group.has(id)) {
-		const watcher = new FileWatcher(id, chokidarOptions, () => {
+	let watcher: FileWatcher = group.get(id);
+	if (!watcher) {
+		watcher = new FileWatcher(id, chokidarOptions, () => {
 			group.delete(id);
 		});
 
@@ -28,7 +30,8 @@ export function addTask(
 		}
 	}
 
-	group.get(id).tasks.add(task);
+	if (isTransformDependency) watcher.transformDependencyTasks.add(task);
+	else watcher.tasks.add(task);
 }
 
 export function deleteTask(id: string, target: Task, chokidarOptionsHash: string) {
@@ -36,9 +39,10 @@ export function deleteTask(id: string, target: Task, chokidarOptionsHash: string
 
 	const watcher = group.get(id);
 	if (watcher) {
-		watcher.tasks.delete(target);
+		let deleted = watcher.tasks.delete(target);
+		deleted = watcher.transformDependencyTasks.delete(target) || deleted;
 
-		if (watcher.tasks.size === 0) {
+		if (deleted && watcher.tasks.size === 0 && watcher.transformDependencyTasks.size === 0) {
 			watcher.close();
 			group.delete(id);
 		}
@@ -49,14 +53,17 @@ export default class FileWatcher {
 	fileExists: boolean;
 	fsWatcher: FSWatcher | fs.FSWatcher;
 	tasks: Set<Task>;
+	transformDependencyTasks: Set<Task>;
 
 	constructor(id: string, chokidarOptions: WatchOptions, dispose: () => void) {
 		this.tasks = new Set();
+		this.transformDependencyTasks = new Set();
 
-		let data: string;
+		let mtime = -1;
 
 		try {
-			fs.statSync(id);
+			const stats = fs.statSync(id);
+			mtime = +stats.mtime;
 			this.fileExists = true;
 		} catch (err) {
 			if (err.code === 'ENOENT') {
@@ -72,15 +79,23 @@ export default class FileWatcher {
 		const handleWatchEvent = (event: string) => {
 			if (event === 'rename' || event === 'unlink') {
 				this.fsWatcher.close();
-				this.trigger();
+				this.trigger(id);
 				dispose();
 			} else {
-				// this is necessary because we get duplicate events...
-				const contents = fs.readFileSync(id, 'utf-8');
-				if (contents !== data) {
-					data = contents;
-					this.trigger();
+				let stats: fs.Stats;
+				try {
+					stats = fs.statSync(id);
+				} catch (err) {
+					if (err.code === 'ENOENT') {
+						if (mtime !== -1) {
+							mtime = -1;
+							this.trigger(id);
+						}
+					}
+					throw err;
 				}
+				// debounce
+				if (+stats.mtime - mtime > 50) this.trigger(id);
 			}
 		};
 
@@ -95,9 +110,12 @@ export default class FileWatcher {
 		this.fsWatcher.close();
 	}
 
-	trigger() {
+	trigger(id: string) {
 		this.tasks.forEach(task => {
-			task.makeDirty();
+			task.makeDirty(id, false);
+		});
+		this.transformDependencyTasks.forEach(task => {
+			task.makeDirty(id, true);
 		});
 	}
 }
