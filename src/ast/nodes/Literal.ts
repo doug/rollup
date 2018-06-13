@@ -15,7 +15,7 @@ import * as NodeType from './NodeType';
 import { SomeReturnExpressionCallback } from './shared/Expression';
 import { Node, NodeBase } from './shared/Node';
 
-export type LiteralValue = string | boolean | null | number | RegExp;
+export type LiteralValue = string | boolean | null | number | RegExp | undefined;
 
 export function isLiteral(node: Node): node is Literal {
 	return node.type === NodeType.Literal;
