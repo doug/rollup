@@ -98,6 +98,7 @@ export class Task {
 	inputOptions: InputOptions;
 	cache: {
 		modules: ModuleJSON[];
+		assetDependencies: string[];
 	};
 	chokidarOptions: WatchOptions;
 	chokidarOptionsHash: string;
@@ -215,6 +216,10 @@ export class Task {
 						});
 					}
 				});
+				this.cache.assetDependencies.forEach(assetDep => {
+					watched.add(assetDep);
+					this.watchFile(assetDep);
+				});
 				this.watched.forEach(id => {
 					if (!watched.has(id)) deleteTask(id, this, this.chokidarOptionsHash);
 				});
@@ -248,6 +253,11 @@ export class Task {
 									this.watchFile(depId, true);
 								});
 							}
+						});
+					}
+					if (this.cache.assetDependencies) {
+						this.cache.assetDependencies.forEach(assetDep => {
+							this.watchFile(assetDep);
 						});
 					}
 				}
