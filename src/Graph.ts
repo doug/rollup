@@ -8,7 +8,6 @@ import ExternalModule from './ExternalModule';
 import Module, { defaultAcornOptions } from './Module';
 import {
 	Asset,
-	EmitAsset,
 	InputOptions,
 	IsExternal,
 	LoadHook,
@@ -25,7 +24,7 @@ import {
 	TreeshakingOptions,
 	WarningHandler
 } from './rollup/types';
-import { createAssetPluginHooks, finaliseAsset } from './utils/assetHooks';
+import { createAssetPluginHooks, EmitAsset, finaliseAsset } from './utils/assetHooks';
 import { handleMissingExport, load, makeOnwarn, resolveId } from './utils/defaults';
 import ensureArray from './utils/ensureArray';
 import { randomUint8Array, Uint8ArrayToHexString, Uint8ArrayXor } from './utils/entryHashing';
@@ -691,7 +690,7 @@ Try defining "${chunkName}" first in the manualChunks definitions of the Rollup 
 					// re-emit transform assets
 					if (cachedModule.transformAssets) {
 						for (const asset of cachedModule.transformAssets) {
-							this.pluginContext.emitAsset(asset.name, asset.source, asset.dependencies);
+							this.pluginContext.emitAsset(asset.name);
 						}
 					}
 					return cachedModule;

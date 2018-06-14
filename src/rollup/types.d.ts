@@ -66,7 +66,8 @@ export interface ModuleJSON {
 	resolvedIds: IdMap;
 }
 
-export type EmitAsset = (name: string, source?: string | Buffer, dependencies?: string[]) => string;
+export function emitAsset(name: string, source?: string | Buffer): string;
+export function emitAsset(name: string, dependencies: string[], source?: string | Buffer): string;
 
 export interface Asset {
 	name: string;
