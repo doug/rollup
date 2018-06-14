@@ -91,6 +91,7 @@ export default class FileWatcher {
 							mtime = -1;
 							this.trigger(id);
 						}
+						return;
 					}
 					throw err;
 				}
